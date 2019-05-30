@@ -3,6 +3,7 @@ import yaml
 from pathlib import Path
 from datetime import datetime
 from collections import OrderedDict
+from easydict import EasyDict as edict
 
 
 def ensure_dir(dirname):
@@ -12,11 +13,11 @@ def ensure_dir(dirname):
 
 def read_json(fname):
     with fname.open('rt') as handle:
-        return json.load(handle, object_hook=OrderedDict)
+        return edict(json.load(handle, object_hook=OrderedDict))
 
 def read_yaml(fname):
     with fname.open('rt') as handle:
-        return yaml.load(handle)
+        return edict(yaml.load(handle))
 
 def write_json(content, fname):
     with fname.open('wt') as handle:

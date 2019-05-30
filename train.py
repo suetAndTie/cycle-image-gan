@@ -7,18 +7,27 @@ import model.metric as module_metric
 import model.model as module_arch
 from utils.config import ConfigParser
 from trainer import Trainer
+import random
+import numpy as np
 
 
 def main(config):
+    # set global random seeds
+    random.seed(config['seed'])
+    np.random.seed(config['seed'])
+    torch.manual_seed(config['seed'])
+
     logger = config.get_logger('train')
 
     # setup data_loader instances
-    data_loader = config.initialize('data_loader', module_data)
+    data_loader = config.initialize('data_loader', module_data, config.config)
     valid_data_loader = data_loader.split_validation()
 
     # build model architecture, then print to console
     model = config.initialize('arch', module_arch)
     logger.info(model)
+
+    raise
 
     # get function handles of loss and metrics
     loss = getattr(module_loss, config['loss'])
@@ -42,7 +51,7 @@ def main(config):
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')
     args.add_argument('-c', '--config', default='config.yaml', type=str,
-                      help='config file path (default: None)')
+                      help='config file path (default: "./config.yaml")')
     args.add_argument('-r', '--resume', default=None, type=str,
                       help='path to latest checkpoint (default: None)')
     args.add_argument('-d', '--device', default=None, type=str,

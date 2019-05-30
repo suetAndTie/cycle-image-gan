@@ -5,7 +5,7 @@ from functools import reduce
 from operator import getitem
 from datetime import datetime
 from logger import setup_logging
-from utils import read_yaml, write_yaml
+from utils import read_yaml, write_yaml, read_json, write_json
 
 
 class ConfigParser:
@@ -19,7 +19,9 @@ class ConfigParser:
             os.environ["CUDA_VISIBLE_DEVICES"] = args.device
         if args.resume:
             self.resume = Path(args.resume)
-            self.cfg_fname = self.resume.parent / 'config.json'
+            self.cfg_fname = self.resume.parent / 'config.yaml'
+            if not os.path.isfile(self.cfg_fname): # if not yaml, check json
+                self.cfg_fname = self.resume.parent / 'config.json'
         else:
             msg_no_cfg = "Configuration file need to be specified. Add '-c config.json', for example."
             assert args.config is not None, msg_no_cfg
@@ -27,7 +29,10 @@ class ConfigParser:
             self.cfg_fname = Path(args.config)
 
         # load config file and apply custom cli options
-        config = read_yaml(self.cfg_fname)
+        if self.cfg_fname.suffix == '.yaml': # use yaml file
+            config = read_yaml(self.cfg_fname)
+        else: # use json file
+            config = read_json(self.cfg_fname)
         self._config = _update_config(config, options, args)
 
         # set save_dir where trained model and log will be saved.
@@ -42,7 +47,10 @@ class ConfigParser:
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
         # save updated config file to the checkpoint dir
-        write_yaml(self.config, self.save_dir / 'config.json')
+        if self.cfg_fname.suffix == '.yaml': # use yaml file
+            write_yaml(self.config, self.save_dir / 'config.yaml')
+        else:
+            write_json(self.config, self.save_dir / 'config.json')
 
         # configure logging module
         setup_logging(self.log_dir)
