@@ -1,4 +1,5 @@
 '''
+Based on
 https://github.com/taoxugit/AttnGAN/blob/master/code/model.py
 '''
 import torch
@@ -13,8 +14,6 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from miscc.config import cfg
 from GlobalAttention import GlobalAttentionGeneral as ATT_NET
-
-from pytorch_pretrained_bert import BertModel
 
 
 class GLU(nn.Module):
@@ -61,7 +60,7 @@ def Block3x3_relu(in_planes, out_planes):
 
 class ResBlock(nn.Module):
     def __init__(self, channel_num):
-        super().__init__()
+        super(ResBlock, self).__init__()
         self.block = nn.Sequential(
             conv3x3(channel_num, channel_num * 2),
             nn.BatchNorm2d(channel_num * 2),
@@ -80,7 +79,7 @@ class ResBlock(nn.Module):
 class RNN_ENCODER(nn.Module):
     def __init__(self, ntoken, ninput=300, drop_prob=0.5,
                  nhidden=128, nlayers=1, bidirectional=True):
-        super().__init__()
+        super(RNN_ENCODER, self).__init__()
         self.n_steps = cfg.TEXT.WORDS_NUM
         self.ntoken = ntoken  # size of the dictionary
         self.ninput = ninput  # size of each embedding vector
@@ -163,33 +162,10 @@ class RNN_ENCODER(nn.Module):
         sent_emb = sent_emb.view(-1, self.nhidden * self.num_directions)
         return words_emb, sent_emb
 
-class RNN_BERT_ENCODER(RNN_ENCODER):
-    def define_module(self):
-        self.encoder = BertModel.from_pretrained('bert-base-uncased')
-        self.encoder.eval()
-        self.drop = nn.Dropout(self.drop_prob)
-        if self.rnn_type == 'LSTM':
-            # dropout: If non-zero, introduces a dropout layer on
-            # the outputs of each RNN layer except the last layer
-            self.rnn = nn.LSTM(self.ninput, self.nhidden,
-                               self.nlayers, batch_first=True,
-                               dropout=self.drop_prob,
-                               bidirectional=self.bidirectional)
-        elif self.rnn_type == 'GRU':
-            self.rnn = nn.GRU(self.ninput, self.nhidden,
-                              self.nlayers, batch_first=True,
-                              dropout=self.drop_prob,
-                              bidirectional=self.bidirectional)
-        else:
-            raise NotImplementedError
 
-
-'''
-AttnGAN Encoder
-'''
 class CNN_ENCODER(nn.Module):
     def __init__(self, nef):
-        super().__init__()
+        super(CNN_ENCODER, self).__init__()
         if cfg.TRAIN.FLAG:
             self.nef = nef
         else:
@@ -294,88 +270,13 @@ class CNN_ENCODER(nn.Module):
             features = self.emb_features(features)
         return features, cnn_code
 
-'''
-MirrorGAN Encoder Decoder
-Image2text
-https://github.com/komiya-m/MirrorGAN/blob/master/model.py
-https://github.com/yunjey/pytorch-tutorial/blob/master/tutorials/03-advanced/image_captioning/model.py
-https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Image-Captioning/blob/master/models.py
-'''
-# class CNN_ENCODER(nn.Module):
-#     def __init__(self, embed_size):
-#         """Load the pretrained ResNet-152 and replace top fc layer."""
-#         super().__init__()
-#         resnet = models.resnet152(pretrained=True)
-#         # Remove linear and pool layers (since we're not doing classification)
-#         modules = list(resnet.children())[:-1]
-#         self.resnet = nn.Sequential(*modules)
-#         # Resize image to fixed size to allow input images of variable size
-#         self.adaptive_pool = nn.AdaptiveAvgPool2d((encoded_image_size, encoded_image_size))
-#         self.fine_tune()
-#
-#     def forward(self, images):
-#         """
-#         Forward propagation.
-#         :param images: images, a tensor of dimensions (batch_size, 3, image_size, image_size)
-#         :return: encoded images
-#         """
-#         out = self.resnet(images)  # (batch_size, 2048, image_size/32, image_size/32)
-#         out = self.adaptive_pool(out)  # (batch_size, 2048, encoded_image_size, encoded_image_size)
-#         out = out.permute(0, 2, 3, 1)  # (batch_size, encoded_image_size, encoded_image_size, 2048)
-#         return out
-#
-#     def fine_tune(self, fine_tune=True):
-#         """
-#         Allow or prevent the computation of gradients for convolutional blocks 2 through 4 of the encoder.
-#         :param fine_tune: Allow?
-#         """
-#         for p in self.resnet.parameters():
-#             p.requires_grad = False
-#         # If fine-tuning, only fine-tune convolutional blocks 2 through 4
-#         for c in list(self.resnet.children())[5:]:
-#             for p in c.parameters():
-#                 p.requires_grad = fine_tune
-#
-#
-# class RNN_DECODER(nn.Module):
-#     def __init__(self, embed_size, hidden_size, vocab_size, num_layers, max_seq_length=20):
-#         """Set the hyper-parameters and build the layers."""
-#         super().__init__()
-#         self.embed = nn.Embedding(vocab_size, embed_size)
-#         self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
-#         self.linear = nn.Linear(hidden_size, vocab_size)
-#         self.max_seg_length = max_seq_length
-#
-#     def forward(self, features, captions, lengths):
-#         """Decode image feature vectors and generates captions."""
-#         embeddings = self.embed(captions)
-#         embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
-#         packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
-#         hiddens, _ = self.lstm(packed)
-#         outputs = self.linear(hiddens[0])
-#         return outputs
-#
-#     def sample(self, features, states=None):
-#         """Generate captions for given image features using greedy search."""
-#         sampled_ids = []
-#         inputs = features.unsqueeze(1)
-#         for i in range(self.max_seg_length):
-#             hiddens, states = self.lstm(inputs, states)          # hiddens: (batch_size, 1, hidden_size)
-#             outputs = self.linear(hiddens.squeeze(1))            # outputs:  (batch_size, vocab_size)
-#             _, predicted = outputs.max(1)                        # predicted: (batch_size)
-#             sampled_ids.append(predicted)
-#             inputs = self.embed(predicted)                       # inputs: (batch_size, embed_size)
-#             inputs = inputs.unsqueeze(1)                         # inputs: (batch_size, 1, embed_size)
-#         sampled_ids = torch.stack(sampled_ids, 1)                # sampled_ids: (batch_size, max_seq_length)
-#         return sampled_ids
-
 
 # ############## G networks ###################
 class CA_NET(nn.Module):
     # some code is modified from vae examples
     # (https://github.com/pytorch/examples/blob/master/vae/main.py)
     def __init__(self):
-        super().__init__()
+        super(CA_NET, self).__init__()
         self.t_dim = cfg.TEXT.EMBEDDING_DIM
         self.c_dim = cfg.GAN.CONDITION_DIM
         self.fc = nn.Linear(self.t_dim, self.c_dim * 4, bias=True)
@@ -404,7 +305,7 @@ class CA_NET(nn.Module):
 
 class INIT_STAGE_G(nn.Module):
     def __init__(self, ngf, ncf):
-        super().__init__()
+        super(INIT_STAGE_G, self).__init__()
         self.gf_dim = ngf
         self.in_dim = cfg.GAN.Z_DIM + ncf  # cfg.TEXT.EMBEDDING_DIM
 
@@ -446,7 +347,7 @@ class INIT_STAGE_G(nn.Module):
 
 class NEXT_STAGE_G(nn.Module):
     def __init__(self, ngf, nef, ncf):
-        super().__init__()
+        super(NEXT_STAGE_G, self).__init__()
         self.gf_dim = ngf
         self.ef_dim = nef
         self.cf_dim = ncf
@@ -485,7 +386,7 @@ class NEXT_STAGE_G(nn.Module):
 
 class GET_IMAGE_G(nn.Module):
     def __init__(self, ngf):
-        super().__init__()
+        super(GET_IMAGE_G, self).__init__()
         self.gf_dim = ngf
         self.img = nn.Sequential(
             conv3x3(ngf, 3),
@@ -499,7 +400,7 @@ class GET_IMAGE_G(nn.Module):
 
 class G_NET(nn.Module):
     def __init__(self):
-        super().__init__()
+        super(G_NET, self).__init__()
         ngf = cfg.GAN.GF_DIM
         nef = cfg.TEXT.EMBEDDING_DIM
         ncf = cfg.GAN.CONDITION_DIM
@@ -553,7 +454,7 @@ class G_NET(nn.Module):
 
 class G_DCGAN(nn.Module):
     def __init__(self):
-        super().__init__()
+        super(G_DCGAN, self).__init__()
         ngf = cfg.GAN.GF_DIM
         nef = cfg.TEXT.EMBEDDING_DIM
         ncf = cfg.GAN.CONDITION_DIM
@@ -638,7 +539,7 @@ def encode_image_by_16times(ndf):
 
 class D_GET_LOGITS(nn.Module):
     def __init__(self, ndf, nef, bcondition=False):
-        super().__init__()
+        super(D_GET_LOGITS, self).__init__()
         self.df_dim = ndf
         self.ef_dim = nef
         self.bcondition = bcondition
@@ -668,7 +569,7 @@ class D_GET_LOGITS(nn.Module):
 # For 64 x 64 images
 class D_NET64(nn.Module):
     def __init__(self, b_jcu=True):
-        super().__init__()
+        super(D_NET64, self).__init__()
         ndf = cfg.GAN.DF_DIM
         nef = cfg.TEXT.EMBEDDING_DIM
         self.img_code_s16 = encode_image_by_16times(ndf)
@@ -686,7 +587,7 @@ class D_NET64(nn.Module):
 # For 128 x 128 images
 class D_NET128(nn.Module):
     def __init__(self, b_jcu=True):
-        super().__init__()
+        super(D_NET128, self).__init__()
         ndf = cfg.GAN.DF_DIM
         nef = cfg.TEXT.EMBEDDING_DIM
         self.img_code_s16 = encode_image_by_16times(ndf)
@@ -709,7 +610,7 @@ class D_NET128(nn.Module):
 # For 256 x 256 images
 class D_NET256(nn.Module):
     def __init__(self, b_jcu=True):
-        super().__init__()
+        super(D_NET256, self).__init__()
         ndf = cfg.GAN.DF_DIM
         nef = cfg.TEXT.EMBEDDING_DIM
         self.img_code_s16 = encode_image_by_16times(ndf)
@@ -730,3 +631,4 @@ class D_NET256(nn.Module):
         x_code4 = self.img_code_s64_1(x_code4)
         x_code4 = self.img_code_s64_2(x_code4)
         return x_code4
+
