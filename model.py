@@ -174,7 +174,7 @@ class CNN_ENCODER(nn.Module):
         model = models.inception_v3()
         url = 'https://download.pytorch.org/models/inception_v3_google-1a9a5a14.pth'
         model.load_state_dict(model_zoo.load_url(url))
-        for param in model.parameters():
+        for param in model.parameters(): # freeze inception model
             param.requires_grad = False
         print('Load pretrained model from ', url)
         # print(model)
@@ -264,11 +264,52 @@ class CNN_ENCODER(nn.Module):
         # 2048
 
         # global image features
-        cnn_code = self.emb_cnn_code(x)
-        # 512
+        cnn_code = self.emb_cnn_code(x) # nef
+
         if features is not None:
-            features = self.emb_features(features)
+            features = self.emb_features(features) # 17 x 17 x nef
         return features, cnn_code
+
+
+# ############## Image2text Encoder-Decoder #######
+class CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
+
+    def __init__(emb_size, hidden_size, vocab_size, rec_unit='lstm', dropout=0.3):
+        """
+        Based on https://github.com/komiya-m/MirrorGAN/blob/master/model.py
+        :param embed_size: size of word embeddings
+        :param hidden_size: size of hidden state of the recurrent unit
+        :param vocab_size: size of the vocabulary (output of the network)
+        :param rec_unit: type of recurrent unit (default=gru)
+        """
+        self.dropout = dropout
+        __rec_units = {
+            'gru': nn.GRU,
+            'lstm': nn.LSTM,
+        }
+        assert rec_unit in __rec_units, 'Specified recurrent unit is not available'
+
+        super().__init__(emb_size)
+
+        self.rnn = __rec_units[rec_unit](2 * emb_size, hidden_size, num_layers=num_layers,
+                        batch_first=True, dropout=self.dropout, bidirectional=False)
+        self.out = nn.Linear(hidden_size, vocab_size)
+
+        return model
+
+    def forward(self, x, text_embeddings):
+        # (bs x 17 x 17 x nef), (bs x nef)
+        features, cnn_code = super().forward(x)
+
+        concat = torch.cat([cnn_code, text_embeddings], axis=-1)
+        # bs x 2*nef
+        output, (hn, cn) = self.rnn(concat)
+        # bs, T, hidden_size
+        output = self.out(output)
+        # bs, T, vocab_size
+
+        return F.log_softmax(output)
+
 
 
 # ############## G networks ###################
@@ -631,4 +672,3 @@ class D_NET256(nn.Module):
         x_code4 = self.img_code_s64_1(x_code4)
         x_code4 = self.img_code_s64_2(x_code4)
         return x_code4
-
