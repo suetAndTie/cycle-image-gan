@@ -70,7 +70,7 @@ def _merge_a_into_b(a, b):
     if type(a) is not edict:
         return
 
-    for k, v in a.iteritems():
+    for k, v in a.items():
         # a must specify keys that are in b
         if not b.has_key(k):
             raise KeyError('{} is not a valid config key'.format(k))
@@ -103,4 +103,3 @@ def cfg_from_file(filename):
         yaml_cfg = edict(yaml.load(f))
 
     _merge_a_into_b(yaml_cfg, __C)
-
