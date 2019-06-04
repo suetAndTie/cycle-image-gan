@@ -1,11 +1,3 @@
-
-# Save captions, 
-data/birds/CUB_200_2011
-data/birds/*.tgz
-
-
-
-# Folder view configuration files
 .DS_Store
 Desktop.ini
 
@@ -112,7 +104,7 @@ ENV/
 .mypy_cache/
 
 # input data, saved log, checkpoints
-# data/
+data/
 input/
 saved/
 datasets/

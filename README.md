@@ -7,17 +7,7 @@ Based on https://github.com/taoxugit/AttnGAN/tree/master/code
 * Image2Text encoder
 
 ## Download Data
-Download the birds image dataset
-```
-wget http://www.vision.caltech.edu/visipedia-data/CUB-200-2011/CUB_200_2011.tgz
-```
-Unzip the file
-```
-tar -xvzf CUB_200_2011.tgz
-```
-Move the correct directory
-```
-mv CUB_200_2011 data/birds/
-```
+1. Download our preprocessed metadata for [birds](https://drive.google.com/open?id=1O_LtUP9sch09QH3s_EBAgLEctBQ5JBSJ)
+2. Download the [birds](http://www.vision.caltech.edu/visipedia/CUB-200-2011.html) image data. Extract them to `data/birds/`
 
 ## Instructions
