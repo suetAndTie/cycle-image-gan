@@ -3,8 +3,11 @@ import random
 import pickle
 import numpy as np
 import pandas as pd
+import torch
+from miscc.config import cfg
 from collections import defaultdict
 from torchvision import transforms
+import torch.utils.data as data
 from torch.utils.data.dataset import Dataset
 from nltk.tokenize import RegexpTokenizer
 from pytorch_pretrained_bert import BertTokenizer
@@ -82,19 +85,18 @@ class TextDataset(Dataset):
         https://github.com/taoxugit/AttnGAN/blob/master/code/datasets.py
     """
     tokenizer = RegexpTokenizer(r'\w+')
-    def __init__(self, cfg, data_dir, split='train',
+    def __init__(self, data_dir, split='train',
                  base_size=64,
                  transform=None, target_transform=None):
-        self.cfg = cfg
         self.transform = transform
         self.norm = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         self.target_transform = target_transform
-        self.embeddings_num = self.cfg.TEXT.CAPTIONS_PER_IMAGE
+        self.embeddings_num = cfg.TEXT.CAPTIONS_PER_IMAGE
 
         self.imsize = []
-        for i in range(self.cfg.TREE.BRANCH_NUM):
+        for i in range(cfg.TREE.BRANCH_NUM):
             self.imsize.append(base_size)
             base_size = base_size * 2
 
@@ -266,17 +268,17 @@ class TextDataset(Dataset):
             print('ERROR: do not need END (0) token', sent_caption)
         num_words = len(sent_caption)
         # pad with 0s (i.e., '<end>')
-        x = np.zeros((self.cfg.TEXT.WORDS_NUM, 1), dtype='int64')
+        x = np.zeros((cfg.TEXT.WORDS_NUM, 1), dtype='int64')
         x_len = num_words
-        if num_words <= self.cfg.TEXT.WORDS_NUM:
+        if num_words <= cfg.TEXT.WORDS_NUM:
             x[:num_words, 0] = sent_caption
         else:
             ix = list(np.arange(num_words))  # 1, 2, 3,..., maxNum
             np.random.shuffle(ix)
-            ix = ix[:self.cfg.TEXT.WORDS_NUM]
+            ix = ix[:cfg.TEXT.WORDS_NUM]
             ix = np.sort(ix)
             x[:, 0] = sent_caption[ix]
-            x_len = self.cfg.TEXT.WORDS_NUM
+            x_len = cfg.TEXT.WORDS_NUM
         return x, x_len
 
     def get_imgs(self, img_path, imsize, bbox=None,
@@ -297,12 +299,12 @@ class TextDataset(Dataset):
             img = transform(img)
 
         ret = []
-        if self.cfg.GAN.B_DCGAN:
+        if cfg.GAN.B_DCGAN:
             ret = [normalize(img)]
         else:
-            for i in range(self.cfg.TREE.BRANCH_NUM):
+            for i in range(cfg.TREE.BRANCH_NUM):
                 # print(imsize[i])
-                if i < (self.cfg.TREE.BRANCH_NUM - 1):
+                if i < (cfg.TREE.BRANCH_NUM - 1):
                     re_img = transforms.Scale(imsize[i])(img)
                 else:
                     re_img = img
@@ -326,7 +328,7 @@ class TextDataset(Dataset):
         imgs = self.get_imgs(img_name, self.imsize,
                         bbox, self.transform, normalize=self.norm)
         # random select a sentence
-        sent_ix = random.randint(0, self.embeddings_num)
+        sent_ix = np.random.randint(0, self.embeddings_num)
         new_sent_ix = index * self.embeddings_num + sent_ix
         caps, cap_len = self.get_caption(new_sent_ix)
         return imgs, caps, cap_len, cls_id, key
