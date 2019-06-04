@@ -1,10 +1,8 @@
 
-# Save captions
-!data/birds/
-data/birds/*
+# Save captions, 
+data/birds/CUB_200_2011
+data/birds/*.tgz
 
-!data/birds/bert_captions.pickle
-!data/birds/captions.pickle
 
 
 # Folder view configuration files
