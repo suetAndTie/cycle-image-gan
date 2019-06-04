@@ -10,6 +10,71 @@ from nltk.tokenize import RegexpTokenizer
 from pytorch_pretrained_bert import BertTokenizer
 from PIL import Image
 
+
+def prepare_data(data):
+    imgs, captions, captions_lens, class_ids, keys = data
+
+    # sort data by the length in a decreasing order
+    sorted_cap_lens, sorted_cap_indices = \
+        torch.sort(captions_lens, 0, True)
+
+    real_imgs = []
+    for i in range(len(imgs)):
+        imgs[i] = imgs[i][sorted_cap_indices]
+        if cfg.CUDA:
+            real_imgs.append(Variable(imgs[i]).cuda())
+        else:
+            real_imgs.append(Variable(imgs[i]))
+
+    captions = captions[sorted_cap_indices].squeeze()
+    class_ids = class_ids[sorted_cap_indices].numpy()
+    # sent_indices = sent_indices[sorted_cap_indices]
+    keys = [keys[i] for i in sorted_cap_indices.numpy()]
+    # print('keys', type(keys), keys[-1])  # list
+    if cfg.CUDA:
+        captions = Variable(captions).cuda()
+        sorted_cap_lens = Variable(sorted_cap_lens).cuda()
+    else:
+        captions = Variable(captions)
+        sorted_cap_lens = Variable(sorted_cap_lens)
+
+    return [real_imgs, captions, sorted_cap_lens,
+            class_ids, keys]
+
+
+def get_imgs(img_path, imsize, bbox=None,
+             transform=None, normalize=None):
+    img = Image.open(img_path).convert('RGB')
+    width, height = img.size
+    if bbox is not None:
+        r = int(np.maximum(bbox[2], bbox[3]) * 0.75)
+        center_x = int((2 * bbox[0] + bbox[2]) / 2)
+        center_y = int((2 * bbox[1] + bbox[3]) / 2)
+        y1 = np.maximum(0, center_y - r)
+        y2 = np.minimum(height, center_y + r)
+        x1 = np.maximum(0, center_x - r)
+        x2 = np.minimum(width, center_x + r)
+        img = img.crop([x1, y1, x2, y2])
+
+    if transform is not None:
+        img = transform(img)
+
+    ret = []
+    if cfg.GAN.B_DCGAN:
+        ret = [normalize(img)]
+    else:
+        for i in range(cfg.TREE.BRANCH_NUM):
+            # print(imsize[i])
+            if i < (cfg.TREE.BRANCH_NUM - 1):
+                re_img = transforms.Scale(imsize[i])(img)
+            else:
+                re_img = img
+            ret.append(normalize(re_img))
+
+    return ret
+
+
+
 class TextDataset(Dataset):
     """
     Text Dataset
