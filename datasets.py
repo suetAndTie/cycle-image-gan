@@ -8,6 +8,7 @@ from miscc.config import cfg
 from collections import defaultdict
 from torchvision import transforms
 import torch.utils.data as data
+from torch.autograd import Variable
 from torch.utils.data.dataset import Dataset
 from nltk.tokenize import RegexpTokenizer
 from pytorch_pretrained_bert import BertTokenizer
