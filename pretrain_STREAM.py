@@ -7,13 +7,13 @@ from __future__ import print_function
 
 from miscc.utils import mkdir_p
 from miscc.utils import build_super_images
-from miscc.losses import sent_loss, words_loss
+from miscc.losses import sent_loss, words_loss, image_to_text_loss
 from miscc.config import cfg, cfg_from_file
 
 from datasets import TextDataset
 from datasets import prepare_data
 
-from model import RNN_ENCODER, CNN_ENCODER
+from model import RNN_ENCODER, CNN_ENCODER_RNN_DECODER
 
 import os
 import sys
@@ -59,6 +59,7 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
     s_total_loss1 = 0
     w_total_loss0 = 0
     w_total_loss1 = 0
+    t_total_loss = 0
     count = (epoch + 1) * len(dataloader)
     start_time = time.time()
     for step, data in enumerate(dataloader, 0):
@@ -69,11 +70,10 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
         imgs, captions, cap_lens, \
             class_ids, keys = prepare_data(data)
 
-
-        # words_features: batch_size x nef x 17 x 17
         # sent_code: batch_size x nef
-        words_features, sent_code = cnn_model(imgs[-1])
-        # --> batch_size x nef x 17*17
+        words_features, sent_code, word_logsoftmax = cnn_model(imgs[-1], captions)
+        # bs x T x vocab_size
+
         nef, att_sze = words_features.size(1), words_features.size(2)
         # words_features = words_features.view(batch_size, nef, -1)
 
@@ -94,6 +94,11 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
         s_total_loss0 += s_loss0.data
         s_total_loss1 += s_loss1.data
         #
+
+        t_loss = image_to_text_loss(word_logsoftmax, captions)
+        loss += t_loss
+        t_total_loss += t_loss.data
+
         loss.backward()
         #
         # `clip_grad_norm` helps prevent
@@ -111,18 +116,23 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
             w_cur_loss0 = w_total_loss0.item() / UPDATE_INTERVAL
             w_cur_loss1 = w_total_loss1.item() / UPDATE_INTERVAL
 
+            t_curr_loss = t_total_loss.item() / UPDATE_INTERVAL
+
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | ms/batch {:5.2f} | '
                   's_loss {:5.2f} {:5.2f} | '
-                  'w_loss {:5.2f} {:5.2f}'
+                  'w_loss {:5.2f} {:5.2f} | '
+                  't_loss {:5.2f}'
                   .format(epoch, step, len(dataloader),
                           elapsed * 1000. / UPDATE_INTERVAL,
                           s_cur_loss0, s_cur_loss1,
-                          w_cur_loss0, w_cur_loss1))
+                          w_cur_loss0, w_cur_loss1,
+                          t_curr_loss))
             s_total_loss0 = 0
             s_total_loss1 = 0
             w_total_loss0 = 0
             w_total_loss1 = 0
+            t_total_loss = 0
             start_time = time.time()
             # attention Maps
             img_set, _ = \
@@ -140,11 +150,12 @@ def evaluate(dataloader, cnn_model, rnn_model, batch_size):
     rnn_model.eval()
     s_total_loss = 0
     w_total_loss = 0
+    t_total_loss = 0
     for step, data in enumerate(dataloader, 0):
         real_imgs, captions, cap_lens, \
                 class_ids, keys = prepare_data(data)
 
-        words_features, sent_code = cnn_model(real_imgs[-1])
+        words_features, sent_code, word_logsoftmax = cnn_model(real_imgs[-1])
         # nef = words_features.size(1)
         # words_features = words_features.view(batch_size, nef, -1)
 
@@ -159,19 +170,26 @@ def evaluate(dataloader, cnn_model, rnn_model, batch_size):
             sent_loss(sent_code, sent_emb, labels, class_ids, batch_size)
         s_total_loss += (s_loss0 + s_loss1).data
 
+        t_loss = image_to_text_loss(word_logsoftmax, captions)
+        t_total_loss += t_loss.data
+
         if step == 50:
             break
 
     s_cur_loss = s_total_loss.item() / step
     w_cur_loss = w_total_loss.item() / step
+    t_cur_loss = t_total_loss.item() / step
 
-    return s_cur_loss, w_cur_loss
+    return s_cur_loss, w_cur_loss, t_cur_loss
 
 
 def build_models():
     # build model ############################################################
-    text_encoder = RNN_ENCODER(dataset.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
-    image_encoder = CNN_ENCODER(cfg.TEXT.EMBEDDING_DIM)
+    text_encoder = BERT_RNN_ENCODER(dataset.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
+    image_encoder = BERT_CNN_ENCODER_RNN_DECODER(cfg.TEXT.EMBEDDING_DIM, cfg.CNN_RNN.HIDDEN_DIM,
+                                            dataset.n_words, rec_unit=cfg.RNN_TYPE)
+
+    raise "TODO LOSS FUNCTION"
     labels = Variable(torch.LongTensor(range(batch_size)))
     start_epoch = 0
     if cfg.TRAIN.NET_E != '':
@@ -279,11 +297,11 @@ if __name__ == "__main__":
                           dataset.ixtoword, image_dir)
             print('-' * 89)
             if len(dataloader_val) > 0:
-                s_loss, w_loss = evaluate(dataloader_val, image_encoder,
+                s_loss, w_loss, t_loss = evaluate(dataloader_val, image_encoder,
                                           text_encoder, batch_size)
                 print('| end epoch {:3d} | valid loss '
-                      '{:5.2f} {:5.2f} | lr {:.5f}|'
-                      .format(epoch, s_loss, w_loss, lr))
+                      '{:5.2f} {:5.2f} {:5.2f} | lr {:.5f}|'
+                      .format(epoch, s_loss, w_loss, t_loss, lr))
             print('-' * 89)
             if lr > cfg.TRAIN.ENCODER_LR/10.:
                 lr *= 0.98

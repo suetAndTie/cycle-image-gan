@@ -1,13 +1,18 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 import numpy as np
 from miscc.config import cfg
 
 from GlobalAttention import func_attention
 
+####################Loss for image2text ###################
+def image_to_text_loss(output, target):
+    return F.nll_loss(output, target)
 
-# ##################Loss for matching text-image###################
+
+####################Loss for matching text-image###################
 def cosine_similarity(x1, x2, dim=1, eps=1e-8):
     """Returns cosine similarity between x1 and x2, computed along dim.
     """
@@ -212,4 +217,3 @@ def KL_loss(mu, logvar):
     KLD_element = mu.pow(2).add_(logvar.exp()).mul_(-1).add_(1).add_(logvar)
     KLD = torch.mean(KLD_element).mul_(-0.5)
     return KLD
-
