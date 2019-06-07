@@ -40,10 +40,10 @@ sys.path.append(dir_path)
 
 UPDATE_INTERVAL = 200
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train a DAMSM network')
+    parser = argparse.ArgumentParser(description='Train a STREAM network')
     parser.add_argument('--cfg', dest='cfg_file',
                         help='optional config file',
-                        default='cfg/DAMSM/bird.yaml', type=str)
+                        default='cfg/STREAM/bird.yaml', type=str)
     parser.add_argument('--gpu', dest='gpu_id', type=int, default=0)
     parser.add_argument('--data_dir', dest='data_dir', type=str, default='data/birds')
     parser.add_argument('--manualSeed', type=int, default=0, help='manual seed')
