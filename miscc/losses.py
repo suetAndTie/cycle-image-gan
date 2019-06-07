@@ -252,7 +252,7 @@ def cycle_generator_loss(netsD, image_encoder, fake_imgs, real_labels, captions,
 
             t_loss = image_to_text_loss(word_logits, captions) * cfg.TRAIN.SMOOTH.LAMBDA
 
-            errG_total += w_loss + s_loss +=
+            errG_total += w_loss + s_loss + t_loss
             logs += 'w_loss: %.2f s_loss: %.2f t_loss: %.2f' % (w_loss.item(), s_loss.item(), t_loss.item())
     return errG_total, logs
 
