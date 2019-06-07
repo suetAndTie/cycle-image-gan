@@ -11,3 +11,11 @@ Based on https://github.com/taoxugit/AttnGAN/tree/master/code
 2. Download the [birds](http://www.vision.caltech.edu/visipedia/CUB-200-2011.html) image data. Extract them to `data/birds/`
 
 ## Instructions
+* pretrain STREAM
+```
+python pretrain_STREAM.py --cfg cfg/STREAM/bird.yaml --gpu 0
+```
+* train CycleGAN
+```
+TODO
+```

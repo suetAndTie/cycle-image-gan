@@ -352,7 +352,7 @@ class CNN_ENCODER(nn.Module):
 
 # ############## Image2text Encoder-Decoder #######
 class CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
-    def __init__(self, emb_size, hidden_size, vocab_size, nlayers=1, bidirectional=True, rec_unit='lstm', dropout=0.5):
+    def __init__(self, emb_size, hidden_size, vocab_size, nlayers=1, bidirectional=True, rec_unit='LSTM', dropout=0.5):
         """
         Based on https://github.com/komiya-m/MirrorGAN/blob/master/model.py
         :param emb_size: size of word embeddings
@@ -365,8 +365,8 @@ class CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
         self.bidirectional = bidirectional
         self.num_directions = 2 if self.bidirectional else 1
         __rec_units = {
-            'gru': nn.GRU,
-            'lstm': nn.LSTM,
+            'GRU': nn.GRU,
+            'LSTM': nn.LSTM,
         }
         assert rec_unit in __rec_units, 'Specified recurrent unit is not available'
 
@@ -400,7 +400,7 @@ class CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
         return features, cnn_code, logits
 
 class BERT_CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
-    def __init__(self, emb_size, hidden_size, vocab_size, nlayers=1, bidirectional=True, rec_unit='lstm', dropout=0.5):
+    def __init__(self, emb_size, hidden_size, vocab_size, nlayers=1, bidirectional=True, rec_unit='LSTM', dropout=0.5):
         """
         Based on https://github.com/komiya-m/MirrorGAN/blob/master/model.py
         :param emb_size: size of word embeddings
@@ -413,8 +413,8 @@ class BERT_CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
         self.bidirectional = bidirectional
         self.num_directions = 2 if self.bidirectional else 1
         __rec_units = {
-            'gru': nn.GRU,
-            'lstm': nn.LSTM,
+            'GRU': nn.GRU,
+            'LSTM': nn.LSTM,
         }
         assert rec_unit in __rec_units, 'Specified recurrent unit is not available'
 
