@@ -56,6 +56,9 @@ __C.GAN.R_NUM = 2
 __C.GAN.B_ATTENTION = True
 __C.GAN.B_DCGAN = False
 
+__C.CNN_RNN = edict()
+__C.CNN_RNN.HIDDEN_DIM = 256
+
 
 __C.TEXT = edict()
 __C.TEXT.CAPTIONS_PER_IMAGE = 10

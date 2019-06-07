@@ -27,6 +27,8 @@ TRAIN:
         GAMMA3: 10.0  # 10good 1&100bad
         LAMBDA: 5.0
 
+CNN_RNN:
+    HIDDEN_DIM: 256
 
 GAN:
     DF_DIM: 64

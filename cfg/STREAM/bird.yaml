@@ -24,6 +24,9 @@ TRAIN:
         GAMMA2: 5.0
         GAMMA3: 10.0  # 10good 1&100bad
 
+CNN_RNN:
+    HIDDEN_DIM: 256
+
 TEXT:
     EMBEDDING_DIM: 768
     CAPTIONS_PER_IMAGE: 10

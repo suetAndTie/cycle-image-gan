@@ -13,7 +13,7 @@ from miscc.config import cfg, cfg_from_file
 from datasets import TextDataset
 from datasets import prepare_data
 
-from model import RNN_ENCODER, CNN_ENCODER_RNN_DECODER
+from model import BERT_RNN_ENCODER, BERT_CNN_ENCODER_RNN_DECODER
 
 import os
 import sys
