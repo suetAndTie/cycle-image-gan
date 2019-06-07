@@ -103,7 +103,7 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
         #
         # `clip_grad_norm` helps prevent
         # the exploding gradient problem in RNNs / LSTMs.
-        torch.nn.utils.clip_grad_norm(rnn_model.parameters(),
+        torch.nn.utils.clip_grad_norm_(rnn_model.parameters(),
                                       cfg.TRAIN.RNN_GRAD_CLIP)
         optimizer.step()
 
@@ -155,7 +155,7 @@ def evaluate(dataloader, cnn_model, rnn_model, batch_size):
         real_imgs, captions, cap_lens, \
                 class_ids, keys = prepare_data(data)
 
-        words_features, sent_code, word_logits = cnn_model(real_imgs[-1])
+        words_features, sent_code, word_logits = cnn_model(imgs[-1], captions)
         # nef = words_features.size(1)
         # words_features = words_features.view(batch_size, nef, -1)
 
