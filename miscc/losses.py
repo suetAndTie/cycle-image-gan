@@ -9,7 +9,7 @@ from GlobalAttention import func_attention
 
 ####################Loss for image2text ###################
 def image_to_text_loss(output, target):
-    return F.nll_loss(output, target)
+    return F.cross_entropy(output, target)
 
 
 ####################Loss for matching text-image###################
@@ -208,6 +208,52 @@ def generator_loss(netsD, image_encoder, fake_imgs, real_labels,
 
             errG_total += w_loss + s_loss
             logs += 'w_loss: %.2f s_loss: %.2f ' % (w_loss.item(), s_loss.item())
+    return errG_total, logs
+
+def cycle_generator_loss(netsD, image_encoder, fake_imgs, real_labels, captions,
+                   words_embs, sent_emb, match_labels,
+                   cap_lens, class_ids):
+    numDs = len(netsD)
+    batch_size = real_labels.size(0)
+    logs = ''
+    # Forward
+    errG_total = 0
+    for i in range(numDs):
+        features = netsD[i](fake_imgs[i])
+        cond_logits = netsD[i].COND_DNET(features, sent_emb)
+        cond_errG = nn.BCELoss()(cond_logits, real_labels)
+        if netsD[i].UNCOND_DNET is  not None:
+            logits = netsD[i].UNCOND_DNET(features)
+            errG = nn.BCELoss()(logits, real_labels)
+            g_loss = errG + cond_errG
+        else:
+            g_loss = cond_errG
+        errG_total += g_loss
+        # err_img = errG_total.item()
+        logs += 'g_loss%d: %.2f ' % (i, g_loss.item())
+
+        # Ranking loss
+        if i == (numDs - 1):
+            # words_features: batch_size x nef x 17 x 17
+            # sent_code: batch_size x nef
+            region_features, cnn_code, word_logits = image_encoder(fake_imgs[i])
+            w_loss0, w_loss1, _ = words_loss(region_features, words_embs,
+                                             match_labels, cap_lens,
+                                             class_ids, batch_size)
+            w_loss = (w_loss0 + w_loss1) * \
+                cfg.TRAIN.SMOOTH.LAMBDA
+            # err_words = err_words + w_loss.item()
+
+            s_loss0, s_loss1 = sent_loss(cnn_code, sent_emb,
+                                         match_labels, class_ids, batch_size)
+            s_loss = (s_loss0 + s_loss1) * \
+                cfg.TRAIN.SMOOTH.LAMBDA
+            # err_sent = err_sent + s_loss.item()
+
+            t_loss = image_to_text_loss(word_logits, captions) * cfg.TRAIN.SMOOTH.LAMBDA
+
+            errG_total += w_loss + s_loss +=
+            logs += 'w_loss: %.2f s_loss: %.2f t_loss: %.2f' % (w_loss.item(), s_loss.item(), t_loss.item())
     return errG_total, logs
 
 

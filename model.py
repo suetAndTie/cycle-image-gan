@@ -17,6 +17,25 @@ from GlobalAttention import GlobalAttentionGeneral as ATT_NET
 from pytorch_pretrained_bert import BertModel
 
 
+class Upsample(nn.Module):
+    def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=True):
+        super().__init__()
+        self.size = size
+        self.scale_factor = float(scale_factor) if scale_factor else None
+        self.mode = mode
+        self.align_corners = align_corners
+
+    def forward(self, x):
+        return F.interpolate(x, self.size, self.scale_factor, self.mode, self.align_corners)
+
+    def extra_repr(self):
+        if self.scale_factor is not None:
+            info = 'scale_factor=' + str(self.scale_factor)
+        else:
+            info = 'size=' + str(self.size)
+        info += ', mode=' + self.mode
+        return info
+
 class GLU(nn.Module):
     def __init__(self):
         super(GLU, self).__init__()
@@ -25,7 +44,7 @@ class GLU(nn.Module):
         nc = x.size(1)
         assert nc % 2 == 0, 'channels dont divide 2!'
         nc = int(nc/2)
-        return x[:, :nc] * F.sigmoid(x[:, nc:])
+        return x[:, :nc] * torch.sigmoid(x[:, nc:])
 
 
 def conv1x1(in_planes, out_planes, bias=False):
@@ -43,7 +62,7 @@ def conv3x3(in_planes, out_planes):
 # Upsale the spatial size by a factor of 2
 def upBlock(in_planes, out_planes):
     block = nn.Sequential(
-        nn.Upsample(scale_factor=2, mode='nearest'),
+        Upsample(scale_factor=2, mode='nearest'),
         conv3x3(in_planes, out_planes * 2),
         nn.BatchNorm2d(out_planes * 2),
         GLU())
@@ -165,9 +184,10 @@ class RNN_ENCODER(nn.Module):
 
 class BERT_RNN_ENCODER(RNN_ENCODER):
     def define_module(self):
-        self.encoder = BertModel().from_pretrained('bert-base-uncased')
+        self.encoder = BertModel.from_pretrained('bert-base-uncased')
         for param in self.encoder.parameters():
             param.requires_grad = False
+        self.bert_linear = nn.Linear(768, self.ninput)
         self.drop = nn.Dropout(self.drop_prob)
         if self.rnn_type == 'LSTM':
             # dropout: If non-zero, introduces a dropout layer on
@@ -184,11 +204,19 @@ class BERT_RNN_ENCODER(RNN_ENCODER):
         else:
             raise NotImplementedError
 
+    def init_weights(self):
+        initrange = 0.1
+        self.bert_linear.weight.data.uniform_(-initrange, initrange)
+        # Do not need to initialize RNN parameters, which have been initialized
+        # http://pytorch.org/docs/master/_modules/torch/nn/modules/rnn.html#LSTM
+        # self.decoder.weight.data.uniform_(-initrange, initrange)
+        # self.decoder.bias.data.fill_(0)
+
     def forward(self, captions, cap_lens, hidden, mask=None):
         # input: torch.LongTensor of size batch x n_steps
         # --> emb: batch x n_steps x ninput
-        emb, _ = self.encoder(captions, torch.zeros(captions.shape).to(captions.device),
-                                output_all_encoded_layers=False)
+        emb, _ = self.encoder(captions, output_all_encoded_layers=False)
+        emb = self.bert_linear(emb)
         emb = self.drop(emb)
         #
         # Returns: a PackedSequence object
@@ -262,7 +290,7 @@ class CNN_ENCODER(nn.Module):
     def forward(self, x):
         features = None
         # --> fixed-size input: batch x 3 x 299 x 299
-        x = nn.Upsample(size=(299, 299), mode='bilinear')(x)
+        x = Upsample(size=(299, 299), mode='bilinear')(x)
         # 299 x 299 x 3
         x = self.Conv2d_1a_3x3(x)
         # 149 x 149 x 32
@@ -324,7 +352,7 @@ class CNN_ENCODER(nn.Module):
 
 # ############## Image2text Encoder-Decoder #######
 class CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
-    def __init__(emb_size, hidden_size, vocab_size, nlayers=1, bidirectional=True, rec_unit='lstm', dropout=0.5):
+    def __init__(self, emb_size, hidden_size, vocab_size, nlayers=1, bidirectional=True, rec_unit='lstm', dropout=0.5):
         """
         Based on https://github.com/komiya-m/MirrorGAN/blob/master/model.py
         :param emb_size: size of word embeddings
@@ -335,6 +363,7 @@ class CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
         self.dropout = dropout
         self.nlayers = nlayers
         self.bidirectional = bidirectional
+        self.num_directions = 2 if self.bidirectional else 1
         __rec_units = {
             'gru': nn.GRU,
             'lstm': nn.LSTM,
@@ -347,7 +376,7 @@ class CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
         self.encoder = nn.Embedding(vocab_size, emb_size)
         self.rnn = __rec_units[rec_unit](emb_size, hidden_size, num_layers=self.nlayers,
                         batch_first=True, dropout=self.dropout, bidirectional=self.bidirectional)
-        self.out = nn.Linear(hidden_size, vocab_size)
+        self.out = nn.Linear(self.num_directions * hidden_size, vocab_size)
 
     def forward(self, x, captions):
         # (bs x 17 x 17 x nef), (bs x nef)
@@ -357,8 +386,7 @@ class CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
         # (bs x hidden_size)
 
         #  (num_layers * num_directions, batch, hidden_size)
-        num_directions = 2 if self.bidirectional else 1
-        h_0 = cnn_hidden.unsqueeze(0).repeat(self.nlayers * num_directions, 1, 1)
+        h_0 = cnn_hidden.unsqueeze(0).repeat(self.nlayers * self.num_directions, 1, 1)
         c_0 = torch.zeros(h_0.shape).to(h_0.device)
 
         # bs x T x vocab_size
@@ -366,18 +394,42 @@ class CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
         # bs x T x nef
         output, (hn, cn) = self.rnn(text_embeddings, (h_0, c_0))
         # bs, T, hidden_size
-        output = self.out(output)
+        logits = self.out(output)
         # bs, T, vocab_size
 
-        return features, cnn_code, F.log_softmax(output)
+        return features, cnn_code, logits
 
-class BERT_CNN_ENCODER_RNN_DECODER(CNN_ENCODER_RNN_DECODER):
-    def __init__(emb_size, hidden_size, vocab_size, nlayers=1, bidirectional=True, rec_unit='lstm', dropout=0.5):
-        super().__init__(emb_size, hidden_size, vocab_size, nlayers=nlayers,
-                        bidirectional=bidirectional, rec_unit=rec_unit, dropout=dropout)
-        self.encoder = BertModel().from_pretrained('bert-base-uncased')
+class BERT_CNN_ENCODER_RNN_DECODER(CNN_ENCODER):
+    def __init__(self, emb_size, hidden_size, vocab_size, nlayers=1, bidirectional=True, rec_unit='lstm', dropout=0.5):
+        """
+        Based on https://github.com/komiya-m/MirrorGAN/blob/master/model.py
+        :param emb_size: size of word embeddings
+        :param hidden_size: size of hidden state of the recurrent unit
+        :param vocab_size: size of the vocabulary (output of the network)
+        :param rec_unit: type of recurrent unit (default=gru)
+        """
+        self.dropout = dropout
+        self.nlayers = nlayers
+        self.bidirectional = bidirectional
+        self.num_directions = 2 if self.bidirectional else 1
+        __rec_units = {
+            'gru': nn.GRU,
+            'lstm': nn.LSTM,
+        }
+        assert rec_unit in __rec_units, 'Specified recurrent unit is not available'
+
+        super().__init__(emb_size)
+
+        self.hidden_linear = nn.Linear(emb_size, hidden_size)
+        self.encoder = BertModel.from_pretrained('bert-base-uncased')
         for param in self.encoder.parameters():
             param.requires_grad = False
+
+        self.bert_linear = nn.Linear(768, emb_size)
+        self.rnn = __rec_units[rec_unit](emb_size, hidden_size, num_layers=self.nlayers,
+                        batch_first=True, dropout=self.dropout, bidirectional=self.bidirectional)
+
+        self.out = nn.Linear(self.num_directions * hidden_size, vocab_size)
 
     def forward(self, x, captions):
         # (bs x 17 x 17 x nef), (bs x nef)
@@ -387,21 +439,21 @@ class BERT_CNN_ENCODER_RNN_DECODER(CNN_ENCODER_RNN_DECODER):
         # (bs x hidden_size)
 
         #  (num_layers * num_directions, batch, hidden_size)
-        num_directions = 2 if self.bidirectional else 1
-        h_0 = cnn_hidden.unsqueeze(0).repeat(self.nlayers * num_directions, 1, 1)
+        h_0 = cnn_hidden.unsqueeze(0).repeat(self.nlayers * self.num_directions, 1, 1)
         c_0 = torch.zeros(h_0.shape).to(h_0.device)
 
         # bs x T x vocab_size
         # get last layer of bert encoder
-        text_embeddings, _ = self.encoder(captions, torch.zeros(captions.shape).to(captions.device),
-                                        output_all_encoded_layers=False)
-        # bs x T x nef
+        text_embeddings, _ = self.encoder(captions, output_all_encoded_layers=False)
+        # bs x T x 768
+        text_embeddings = self.bert_linear(text_embeddings)
+        # bs x T x emb_size
         output, (hn, cn) = self.rnn(text_embeddings, (h_0, c_0))
         # bs, T, hidden_size
-        output = self.out(output)
+        logits = self.out(output)
         # bs, T, vocab_size
 
-        return features, cnn_code, F.log_softmax(output)
+        return features, cnn_code, logits
 
 
 # ############## G networks ###################
@@ -524,7 +576,7 @@ class SENTENCE_NEXT_STAGE_G(NEXT_STAGE_G):
         self.residual = self._make_layer(ResBlock, ngf * 2)
         self.upsample = upBlock(ngf * 2, ngf)
 
-    def forward(self, h_code, c_code, word_embs, mask):
+    def forward(self, h_code, c_code, sent_emb, word_embs, mask):
         """
             h_code1(query):  batch x idf x ih x iw (queryL=ihxiw)
             word_embs(context): batch x cdf x sourceL (sourceL=seq_len)
@@ -532,9 +584,8 @@ class SENTENCE_NEXT_STAGE_G(NEXT_STAGE_G):
             att1: batch x sourceL x queryL
         """
         self.w_att.applyMask(mask)
-        c_code, att = self.w_att(h_code, word_embs)
+        c_code, w_att = self.w_att(h_code, word_embs)
         sc_code, s_att = self.s_att(h_code, sent_embs)
-
 
         h_c_code = torch.cat((h_code, c_code, sc_code), 1)
         out_code = self.residual(h_c_code)
@@ -542,7 +593,7 @@ class SENTENCE_NEXT_STAGE_G(NEXT_STAGE_G):
         # state size ngf/2 x 2in_size x 2in_size
         out_code = self.upsample(out_code)
 
-        return out_code, att, s_att
+        return out_code, s_att, w_att
 
 
 
@@ -612,6 +663,63 @@ class G_NET(nn.Module):
 
         return fake_imgs, att_maps, mu, logvar
 
+
+class SENTENCE_G_NET(G_NET):
+    def __init__(self):
+        super(G_NET, self).__init__()
+        ngf = cfg.GAN.GF_DIM
+        nef = cfg.TEXT.EMBEDDING_DIM
+        ncf = cfg.GAN.CONDITION_DIM
+        self.ca_net = CA_NET()
+
+        if cfg.TREE.BRANCH_NUM > 0:
+            self.h_net1 = INIT_STAGE_G(ngf * 16, ncf)
+            self.img_net1 = GET_IMAGE_G(ngf)
+        # gf x 64 x 64
+        if cfg.TREE.BRANCH_NUM > 1:
+            self.h_net2 = SENTENCE_NEXT_STAGE_G(ngf, nef, ncf)
+            self.img_net2 = GET_IMAGE_G(ngf)
+        if cfg.TREE.BRANCH_NUM > 2:
+            self.h_net3 = SENTENCE_NEXT_STAGE_G(ngf, nef, ncf)
+            self.img_net3 = GET_IMAGE_G(ngf)
+
+    def forward(self, z_code, sent_emb, word_embs, mask):
+        """
+            :param z_code: batch x cfg.GAN.Z_DIM
+            :param sent_emb: batch x cfg.TEXT.EMBEDDING_DIM
+            :param word_embs: batch x cdf x seq_len
+            :param mask: batch x seq_len
+            :return:
+        """
+        fake_imgs = []
+        w_att_maps = []
+        s_att_maps = []
+        c_code, mu, logvar = self.ca_net(sent_emb)
+
+        if cfg.TREE.BRANCH_NUM > 0:
+            h_code1 = self.h_net1(z_code, c_code)
+            fake_img1 = self.img_net1(h_code1)
+            fake_imgs.append(fake_img1)
+        if cfg.TREE.BRANCH_NUM > 1:
+            h_code2, s_att1, w_att1 = \
+                self.h_net2(h_code1, c_code, sent_emb, word_embs, mask)
+            fake_img2 = self.img_net2(h_code2)
+            fake_imgs.append(fake_img2)
+            if w_att1 is not None:
+                w_att_maps.append(w_att1)
+            if s_att1 is not None:
+                s_att_maps.append(s_att1)
+        if cfg.TREE.BRANCH_NUM > 2:
+            h_code3, s_att2, w_att2 = \
+                self.h_net3(h_code2, c_code, sent_emb, word_embs, mask)
+            fake_img3 = self.img_net3(h_code3)
+            fake_imgs.append(fake_img3)
+            if w_att2 is not None:
+                w_att_maps.append(w_att2)
+            if s_att2 is not None:
+                s_att_maps.append(s_att2)
+
+        return fake_imgs, s_att_maps, w_att_maps, mu, logvar
 
 
 class G_DCGAN(nn.Module):

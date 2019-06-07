@@ -71,7 +71,7 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
             class_ids, keys = prepare_data(data)
 
         # sent_code: batch_size x nef
-        words_features, sent_code, word_logsoftmax = cnn_model(imgs[-1], captions)
+        words_features, sent_code, word_logits = cnn_model(imgs[-1], captions)
         # bs x T x vocab_size
 
         nef, att_sze = words_features.size(1), words_features.size(2)
@@ -95,7 +95,7 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
         s_total_loss1 += s_loss1.data
         #
 
-        t_loss = image_to_text_loss(word_logsoftmax, captions)
+        t_loss = image_to_text_loss(word_logits, captions)
         loss += t_loss
         t_total_loss += t_loss.data
 
@@ -155,7 +155,7 @@ def evaluate(dataloader, cnn_model, rnn_model, batch_size):
         real_imgs, captions, cap_lens, \
                 class_ids, keys = prepare_data(data)
 
-        words_features, sent_code, word_logsoftmax = cnn_model(real_imgs[-1])
+        words_features, sent_code, word_logits = cnn_model(real_imgs[-1])
         # nef = words_features.size(1)
         # words_features = words_features.view(batch_size, nef, -1)
 
@@ -170,7 +170,7 @@ def evaluate(dataloader, cnn_model, rnn_model, batch_size):
             sent_loss(sent_code, sent_emb, labels, class_ids, batch_size)
         s_total_loss += (s_loss0 + s_loss1).data
 
-        t_loss = image_to_text_loss(word_logsoftmax, captions)
+        t_loss = image_to_text_loss(word_logits, captions)
         t_total_loss += t_loss.data
 
         if step == 50:
@@ -189,7 +189,6 @@ def build_models():
     image_encoder = BERT_CNN_ENCODER_RNN_DECODER(cfg.TEXT.EMBEDDING_DIM, cfg.CNN_RNN.HIDDEN_DIM,
                                             dataset.n_words, rec_unit=cfg.RNN_TYPE)
 
-    raise "TODO LOSS FUNCTION"
     labels = Variable(torch.LongTensor(range(batch_size)))
     start_epoch = 0
     if cfg.TRAIN.NET_E != '':
