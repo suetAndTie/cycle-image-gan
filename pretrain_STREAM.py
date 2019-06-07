@@ -145,7 +145,7 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
     return count
 
 
-def evaluate(dataloader, cnn_model, rnn_model, batch_size):
+def evaluate(dataloader, cnn_model, rnn_model, batch_size, labels):
     cnn_model.eval()
     rnn_model.eval()
     s_total_loss = 0
@@ -297,7 +297,7 @@ if __name__ == "__main__":
             print('-' * 89)
             if len(dataloader_val) > 0:
                 s_loss, w_loss, t_loss = evaluate(dataloader_val, image_encoder,
-                                          text_encoder, batch_size)
+                                          text_encoder, batch_size, labels)
                 print('| end epoch {:3d} | valid loss '
                       '{:5.2f} {:5.2f} {:5.2f} | lr {:.5f}|'
                       .format(epoch, s_loss, w_loss, t_loss, lr))
