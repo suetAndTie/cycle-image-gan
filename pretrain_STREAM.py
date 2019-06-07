@@ -152,7 +152,7 @@ def evaluate(dataloader, cnn_model, rnn_model, batch_size):
     w_total_loss = 0
     t_total_loss = 0
     for step, data in enumerate(dataloader, 0):
-        real_imgs, captions, cap_lens, \
+        imgs, captions, cap_lens, \
                 class_ids, keys = prepare_data(data)
 
         words_features, sent_code, word_logits = cnn_model(imgs[-1], captions)
