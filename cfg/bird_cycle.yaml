@@ -11,6 +11,7 @@ TREE:
 
 
 TRAIN:
+    TRAINER: 'CycleGANTrainer'
     FLAG: True
     NET_G: ''  # '../models/bird_AttnGAN2.pth'
     B_NET_D: True
