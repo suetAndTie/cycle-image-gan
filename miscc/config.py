@@ -27,7 +27,7 @@ __C.TREE.BASE_SIZE = 64
 
 # Training options
 __C.TRAIN = edict()
-__C.TRAINER = 'condGANTrainer'
+__C.TRAIN.TRAINER = 'condGANTrainer'
 __C.TRAIN.BATCH_SIZE = 64
 __C.TRAIN.MAX_EPOCH = 600
 __C.TRAIN.SNAPSHOT_INTERVAL = 2000
