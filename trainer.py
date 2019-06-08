@@ -18,7 +18,7 @@ from datasets import prepare_data
 from model import RNN_ENCODER, CNN_ENCODER, CNN_ENCODER_RNN_DECODER, \
     BERT_CNN_ENCODER_RNN_DECODER, BERT_RNN_ENCODER
 
-from miscc.losses import words_loss
+from miscc.losses import words_loss, cycle_generator_loss
 from miscc.losses import discriminator_loss, generator_loss, KL_loss
 import os
 import time
