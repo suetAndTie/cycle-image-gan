@@ -630,7 +630,7 @@ class CycleGANTrainer(condGANTrainer):
         # for i in range(len(netsD)):
         i = -1
         img = fake_imgs[i].detach()
-        region_features, _ = image_encoder(img, captions)
+        region_features, _, _ = image_encoder(img, captions)
         att_sze = region_features.size(2)
         _, _, att_maps = words_loss(region_features.detach(),
                                     words_embs.detach(),
