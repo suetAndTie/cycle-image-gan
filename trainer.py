@@ -524,8 +524,8 @@ class CycleGANTrainer(condGANTrainer):
         if cfg.TRAIN.NET_E == '':
             print('Error: no pretrained text-image encoders')
             return
-
-        image_encoder = BERT_CNN_ENCODER_RNN_DECODER(cfg.TEXT.EMBEDDING_DIM)
+        image_encoder = BERT_CNN_ENCODER_RNN_DECODER(cfg.TEXT.EMBEDDING_DIM, cfg.CNN_RNN.HIDDEN_DIM,
+                                            dataset.n_words, rec_unit=cfg.RNN_TYPE)
         img_encoder_path = cfg.TRAIN.NET_E.replace('text_encoder', 'image_encoder')
         state_dict = \
             torch.load(img_encoder_path, map_location=lambda storage, loc: storage)
@@ -536,7 +536,7 @@ class CycleGANTrainer(condGANTrainer):
         image_encoder.eval()
 
         text_encoder = \
-            BERT_RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
+            BERT_RNN_ENCODER(dataset.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
         state_dict = \
             torch.load(cfg.TRAIN.NET_E,
                        map_location=lambda storage, loc: storage)
@@ -630,7 +630,7 @@ class CycleGANTrainer(condGANTrainer):
         # for i in range(len(netsD)):
         i = -1
         img = fake_imgs[i].detach()
-        region_features, _ = image_encoder(img)
+        region_features, _ = image_encoder(img, captions)
         att_sze = region_features.size(2)
         _, _, att_maps = words_loss(region_features.detach(),
                                     words_embs.detach(),
