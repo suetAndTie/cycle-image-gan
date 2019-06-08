@@ -1,4 +1,4 @@
-CONFIG_NAME: 'attn2'
+CONFIG_NAME: 'cycle'
 
 DATASET_NAME: 'birds'
 DATA_DIR: 'data/birds'

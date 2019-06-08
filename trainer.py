@@ -15,7 +15,7 @@ from miscc.utils import build_super_images, build_super_images2
 from miscc.utils import weights_init, load_params, copy_G_params
 from model import G_DCGAN, G_NET
 from datasets import prepare_data
-from model import RNN_ENCODER, CNN_ENCODER
+from model import RNN_ENCODER, CNN_ENCODER, BERT_CNN_ENCODER_RNN_DECODER, BERT_RNN_ENCODER
 
 from miscc.losses import words_loss
 from miscc.losses import discriminator_loss, generator_loss, KL_loss
