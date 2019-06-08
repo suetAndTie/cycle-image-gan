@@ -568,32 +568,32 @@ class NEXT_STAGE_G(nn.Module):
 
         return out_code, att
 
-class SENTENCE_NEXT_STAGE_G(NEXT_STAGE_G):
-    def define_module(self):
-        ngf = self.gf_dim
-        self.w_att = ATT_NET(ngf, self.ef_dim)
-        self.s_attn = ATT_NET(ngf, self.ef_dim)
-        self.residual = self._make_layer(ResBlock, ngf * 2)
-        self.upsample = upBlock(ngf * 2, ngf)
-
-    def forward(self, h_code, c_code, sent_emb, word_embs, mask):
-        """
-            h_code1(query):  batch x idf x ih x iw (queryL=ihxiw)
-            word_embs(context): batch x cdf x sourceL (sourceL=seq_len)
-            c_code1: batch x idf x queryL
-            att1: batch x sourceL x queryL
-        """
-        self.w_att.applyMask(mask)
-        c_code, w_att = self.w_att(h_code, word_embs)
-        sc_code, s_att = self.s_att(h_code, sent_embs)
-
-        h_c_code = torch.cat((h_code, c_code, sc_code), 1)
-        out_code = self.residual(h_c_code)
-
-        # state size ngf/2 x 2in_size x 2in_size
-        out_code = self.upsample(out_code)
-
-        return out_code, s_att, w_att
+# class SENTENCE_NEXT_STAGE_G(NEXT_STAGE_G):
+#     def define_module(self):
+#         ngf = self.gf_dim
+#         self.w_att = ATT_NET(ngf, self.ef_dim)
+#         self.s_att = ATT_NET(ngf, self.ef_dim)
+#         self.residual = self._make_layer(ResBlock, ngf * 2)
+#         self.upsample = upBlock(ngf * 2, ngf)
+#
+#     def forward(self, h_code, c_code, sent_embs, word_embs, mask):
+#         """
+#             h_code1(query):  batch x idf x ih x iw (queryL=ihxiw)
+#             word_embs(context): batch x cdf x sourceL (sourceL=seq_len)
+#             c_code1: batch x idf x queryL
+#             att1: batch x sourceL x queryL
+#         """
+#         self.w_att.applyMask(mask)
+#         c_code, w_att = self.w_att(h_code, word_embs)
+#         sc_code, s_att = self.s_att(h_code, sent_embs)
+#
+#         h_c_code = torch.cat((h_code, c_code, sc_code), 1)
+#         out_code = self.residual(h_c_code)
+#
+#         # state size ngf/2 x 2in_size x 2in_size
+#         out_code = self.upsample(out_code)
+#
+#         return out_code, s_att, w_att
 
 
 
@@ -663,63 +663,63 @@ class G_NET(nn.Module):
 
         return fake_imgs, att_maps, mu, logvar
 
-
-class SENTENCE_G_NET(G_NET):
-    def __init__(self):
-        super(G_NET, self).__init__()
-        ngf = cfg.GAN.GF_DIM
-        nef = cfg.TEXT.EMBEDDING_DIM
-        ncf = cfg.GAN.CONDITION_DIM
-        self.ca_net = CA_NET()
-
-        if cfg.TREE.BRANCH_NUM > 0:
-            self.h_net1 = INIT_STAGE_G(ngf * 16, ncf)
-            self.img_net1 = GET_IMAGE_G(ngf)
-        # gf x 64 x 64
-        if cfg.TREE.BRANCH_NUM > 1:
-            self.h_net2 = SENTENCE_NEXT_STAGE_G(ngf, nef, ncf)
-            self.img_net2 = GET_IMAGE_G(ngf)
-        if cfg.TREE.BRANCH_NUM > 2:
-            self.h_net3 = SENTENCE_NEXT_STAGE_G(ngf, nef, ncf)
-            self.img_net3 = GET_IMAGE_G(ngf)
-
-    def forward(self, z_code, sent_emb, word_embs, mask):
-        """
-            :param z_code: batch x cfg.GAN.Z_DIM
-            :param sent_emb: batch x cfg.TEXT.EMBEDDING_DIM
-            :param word_embs: batch x cdf x seq_len
-            :param mask: batch x seq_len
-            :return:
-        """
-        fake_imgs = []
-        w_att_maps = []
-        s_att_maps = []
-        c_code, mu, logvar = self.ca_net(sent_emb)
-
-        if cfg.TREE.BRANCH_NUM > 0:
-            h_code1 = self.h_net1(z_code, c_code)
-            fake_img1 = self.img_net1(h_code1)
-            fake_imgs.append(fake_img1)
-        if cfg.TREE.BRANCH_NUM > 1:
-            h_code2, s_att1, w_att1 = \
-                self.h_net2(h_code1, c_code, sent_emb, word_embs, mask)
-            fake_img2 = self.img_net2(h_code2)
-            fake_imgs.append(fake_img2)
-            if w_att1 is not None:
-                w_att_maps.append(w_att1)
-            if s_att1 is not None:
-                s_att_maps.append(s_att1)
-        if cfg.TREE.BRANCH_NUM > 2:
-            h_code3, s_att2, w_att2 = \
-                self.h_net3(h_code2, c_code, sent_emb, word_embs, mask)
-            fake_img3 = self.img_net3(h_code3)
-            fake_imgs.append(fake_img3)
-            if w_att2 is not None:
-                w_att_maps.append(w_att2)
-            if s_att2 is not None:
-                s_att_maps.append(s_att2)
-
-        return fake_imgs, s_att_maps, w_att_maps, mu, logvar
+#
+# class SENTENCE_G_NET(G_NET):
+#     def __init__(self):
+#         super(G_NET, self).__init__()
+#         ngf = cfg.GAN.GF_DIM
+#         nef = cfg.TEXT.EMBEDDING_DIM
+#         ncf = cfg.GAN.CONDITION_DIM
+#         self.ca_net = CA_NET()
+#
+#         if cfg.TREE.BRANCH_NUM > 0:
+#             self.h_net1 = INIT_STAGE_G(ngf * 16, ncf)
+#             self.img_net1 = GET_IMAGE_G(ngf)
+#         # gf x 64 x 64
+#         if cfg.TREE.BRANCH_NUM > 1:
+#             self.h_net2 = SENTENCE_NEXT_STAGE_G(ngf, nef, ncf)
+#             self.img_net2 = GET_IMAGE_G(ngf)
+#         if cfg.TREE.BRANCH_NUM > 2:
+#             self.h_net3 = SENTENCE_NEXT_STAGE_G(ngf, nef, ncf)
+#             self.img_net3 = GET_IMAGE_G(ngf)
+#
+#     def forward(self, z_code, sent_emb, word_embs, mask):
+#         """
+#             :param z_code: batch x cfg.GAN.Z_DIM
+#             :param sent_emb: batch x cfg.TEXT.EMBEDDING_DIM
+#             :param word_embs: batch x cdf x seq_len
+#             :param mask: batch x seq_len
+#             :return:
+#         """
+#         fake_imgs = []
+#         w_att_maps = []
+#         s_att_maps = []
+#         c_code, mu, logvar = self.ca_net(sent_emb)
+#
+#         if cfg.TREE.BRANCH_NUM > 0:
+#             h_code1 = self.h_net1(z_code, c_code)
+#             fake_img1 = self.img_net1(h_code1)
+#             fake_imgs.append(fake_img1)
+#         if cfg.TREE.BRANCH_NUM > 1:
+#             h_code2, s_att1, w_att1 = \
+#                 self.h_net2(h_code1, c_code, sent_emb, word_embs, mask)
+#             fake_img2 = self.img_net2(h_code2)
+#             fake_imgs.append(fake_img2)
+#             if w_att1 is not None:
+#                 w_att_maps.append(w_att1)
+#             if s_att1 is not None:
+#                 s_att_maps.append(s_att1)
+#         if cfg.TREE.BRANCH_NUM > 2:
+#             h_code3, s_att2, w_att2 = \
+#                 self.h_net3(h_code2, c_code, sent_emb, word_embs, mask)
+#             fake_img3 = self.img_net3(h_code3)
+#             fake_imgs.append(fake_img3)
+#             if w_att2 is not None:
+#                 w_att_maps.append(w_att2)
+#             if s_att2 is not None:
+#                 s_att_maps.append(s_att2)
+#
+#         return fake_imgs, s_att_maps, w_att_maps, mu, logvar
 
 
 class G_DCGAN(nn.Module):

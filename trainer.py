@@ -16,7 +16,7 @@ from miscc.utils import weights_init, load_params, copy_G_params
 from model import G_DCGAN, G_NET
 from datasets import prepare_data
 from model import RNN_ENCODER, CNN_ENCODER, CNN_ENCODER_RNN_DECODER, \
-    BERT_CNN_ENCODER_RNN_DECODER, BERT_RNN_ENCODER, SENTENCE_G_NET
+    BERT_CNN_ENCODER_RNN_DECODER, BERT_RNN_ENCODER
 
 from miscc.losses import words_loss
 from miscc.losses import discriminator_loss, generator_loss, KL_loss
@@ -561,7 +561,7 @@ class CycleGANTrainer(condGANTrainer):
             netsD = [D_NET(b_jcu=False)]
         else:
             from model import D_NET64, D_NET128, D_NET256
-            netG = SENTENCE_G_NET()
+            netG = G_NET()
             if cfg.TREE.BRANCH_NUM > 0:
                 netsD.append(D_NET64())
             if cfg.TREE.BRANCH_NUM > 1:
@@ -786,7 +786,7 @@ class CycleGANTrainer(condGANTrainer):
             if cfg.GAN.B_DCGAN:
                 netG = G_DCGAN()
             else:
-                netG = SENTENCE_G_NET()
+                netG = G_NET()
             netG.apply(weights_init)
             netG.cuda()
             netG.eval()
