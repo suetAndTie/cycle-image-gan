@@ -608,8 +608,7 @@ class CycleGANTrainer(condGANTrainer):
                          image_encoder, captions, cap_lens,
                          gen_iterations, name='current'):
         # Save images
-        fake_imgs, s_attention_maps, w_attention_maps, _, _ = netG(noise, sent_emb, words_embs, mask)
-        attention_maps = w_attention_maps
+        fake_imgs, attention_maps, _, _ = netG(noise, sent_emb, words_embs, mask)
         for i in range(len(attention_maps)):
             if len(fake_imgs) > 1:
                 img = fake_imgs[i + 1].detach().cpu()
