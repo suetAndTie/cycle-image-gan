@@ -690,7 +690,7 @@ class CycleGANTrainer(condGANTrainer):
                 # (2) Generate fake images
                 ######################################################
                 noise.data.normal_(0, 1)
-                fake_imgs, _, _, mu, logvar = netG(noise, sent_emb, words_embs, mask)
+                fake_imgs, _, mu, logvar = netG(noise, sent_emb, words_embs, mask)
 
                 #######################################################
                 # (3) Update D network
