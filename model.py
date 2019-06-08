@@ -18,7 +18,7 @@ from pytorch_pretrained_bert import BertModel
 
 
 class Upsample(nn.Module):
-    def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=False):
+    def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=None):
         super().__init__()
         self.size = size
         self.scale_factor = float(scale_factor) if scale_factor else None
@@ -290,7 +290,7 @@ class CNN_ENCODER(nn.Module):
     def forward(self, x):
         features = None
         # --> fixed-size input: batch x 3 x 299 x 299
-        x = Upsample(size=(299, 299), mode='bilinear', align_corners=True)(x)
+        x = Upsample(size=(299, 299), mode='bilinear')(x)
         # 299 x 299 x 3
         x = self.Conv2d_1a_3x3(x)
         # 149 x 149 x 32
