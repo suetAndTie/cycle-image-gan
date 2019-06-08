@@ -23,7 +23,6 @@ import os
 import time
 import numpy as np
 import sys
-from cycle_trainer import CycleGANTrainer
 
 # ################# Text to image task############################ #
 class condGANTrainer(object):
@@ -526,7 +525,7 @@ class CycleGANTrainer(condGANTrainer):
             print('Error: no pretrained text-image encoders')
             return
         image_encoder = BERT_CNN_ENCODER_RNN_DECODER(cfg.TEXT.EMBEDDING_DIM, cfg.CNN_RNN.HIDDEN_DIM,
-                                            dataset.n_words, rec_unit=cfg.RNN_TYPE)
+                                            self.data_loader.dataset.n_words, rec_unit=cfg.RNN_TYPE)
         img_encoder_path = cfg.TRAIN.NET_E.replace('text_encoder', 'image_encoder')
         state_dict = \
             torch.load(img_encoder_path, map_location=lambda storage, loc: storage)
@@ -537,7 +536,7 @@ class CycleGANTrainer(condGANTrainer):
         image_encoder.eval()
 
         text_encoder = \
-            BERT_RNN_ENCODER(dataset.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
+            BERT_RNN_ENCODER(self.data_loader.dataset.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
         state_dict = \
             torch.load(cfg.TRAIN.NET_E,
                        map_location=lambda storage, loc: storage)
