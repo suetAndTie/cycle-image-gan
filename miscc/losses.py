@@ -241,7 +241,7 @@ def cycle_generator_loss(netsD, image_encoder, fake_imgs, real_labels, captions,
         if i == (numDs - 1):
             # words_features: batch_size x nef x 17 x 17
             # sent_code: batch_size x nef
-            region_features, cnn_code, word_logits = image_encoder(fake_imgs[i])
+            region_features, cnn_code, word_logits = image_encoder(fake_imgs[i], captions)
             w_loss0, w_loss1, _ = words_loss(region_features, words_embs,
                                              match_labels, cap_lens,
                                              class_ids, batch_size)
