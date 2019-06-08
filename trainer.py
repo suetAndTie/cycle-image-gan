@@ -534,7 +534,7 @@ class CycleGANTrainer(condGANTrainer):
         for p in image_encoder.parameters():
             p.requires_grad = False
         print('Load image encoder from:', img_encoder_path)
-        image_encoder.eval()
+        # image_encoder.eval()
 
         text_encoder = \
             BERT_RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
