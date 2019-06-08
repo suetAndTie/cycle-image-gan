@@ -15,7 +15,8 @@ from miscc.utils import build_super_images, build_super_images2
 from miscc.utils import weights_init, load_params, copy_G_params
 from model import G_DCGAN, G_NET
 from datasets import prepare_data
-from model import RNN_ENCODER, CNN_ENCODER, CNN_ENCODER_RNN_DECODER, BERT_CNN_ENCODER_RNN_DECODER, BERT_RNN_ENCODER
+from model import RNN_ENCODER, CNN_ENCODER, CNN_ENCODER_RNN_DECODER, \
+    BERT_CNN_ENCODER_RNN_DECODER, BERT_RNN_ENCODER, SENTENCE_G_NET
 
 from miscc.losses import words_loss
 from miscc.losses import discriminator_loss, generator_loss, KL_loss
@@ -525,7 +526,7 @@ class CycleGANTrainer(condGANTrainer):
             print('Error: no pretrained text-image encoders')
             return
         image_encoder = BERT_CNN_ENCODER_RNN_DECODER(cfg.TEXT.EMBEDDING_DIM, cfg.CNN_RNN.HIDDEN_DIM,
-                                            self.data_loader.dataset.n_words, rec_unit=cfg.RNN_TYPE)
+                                            self.n_words, rec_unit=cfg.RNN_TYPE)
         img_encoder_path = cfg.TRAIN.NET_E.replace('text_encoder', 'image_encoder')
         state_dict = \
             torch.load(img_encoder_path, map_location=lambda storage, loc: storage)
@@ -536,7 +537,7 @@ class CycleGANTrainer(condGANTrainer):
         image_encoder.eval()
 
         text_encoder = \
-            BERT_RNN_ENCODER(self.data_loader.dataset.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
+            BERT_RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
         state_dict = \
             torch.load(cfg.TRAIN.NET_E,
                        map_location=lambda storage, loc: storage)
@@ -785,12 +786,12 @@ class CycleGANTrainer(condGANTrainer):
             if cfg.GAN.B_DCGAN:
                 netG = G_DCGAN()
             else:
-                netG = G_NET()
+                netG = SENTENCE_G_NET()
             netG.apply(weights_init)
             netG.cuda()
             netG.eval()
             #
-            text_encoder = RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
+            text_encoder = BERT_RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
             state_dict = \
                 torch.load(cfg.TRAIN.NET_E, map_location=lambda storage, loc: storage)
             text_encoder.load_state_dict(state_dict)
@@ -865,7 +866,7 @@ class CycleGANTrainer(condGANTrainer):
         else:
             # Build and load the generator
             text_encoder = \
-                RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
+                BERT_RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
             state_dict = \
                 torch.load(cfg.TRAIN.NET_E, map_location=lambda storage, loc: storage)
             text_encoder.load_state_dict(state_dict)
