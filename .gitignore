@@ -1,5 +1,6 @@
 DAMSMencoders/*
 output/*
+models/*
 
 .DS_Store
 Desktop.ini
