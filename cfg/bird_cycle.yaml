@@ -1,7 +1,7 @@
 CONFIG_NAME: 'cycle'
 
 DATASET_NAME: 'birds'
-DATA_DIR: 'data/birds'
+DATA_DIR: 'data/birds/test'
 GPU_ID: 0
 WORKERS: 4
 
