@@ -4,7 +4,7 @@ DATASET_NAME: 'birds'
 DATA_DIR: 'data/birds'
 GPU_ID: 0
 WORKERS: 4
-
+B_VALIDATION: True
 
 TREE:
     BRANCH_NUM: 3
@@ -13,7 +13,7 @@ TREE:
 TRAIN:
     TRAINER: 'CycleGANTrainer'
     FLAG: False
-    NET_G: ''  # '../models/bird_AttnGAN2.pth'
+    NET_G: 'models/cycle/netG_epoch_100.pth' 
     B_NET_D: True
     BATCH_SIZE: 20  # 22
     MAX_EPOCH: 600
