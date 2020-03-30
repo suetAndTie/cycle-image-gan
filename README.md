@@ -1,6 +1,8 @@
 # cycle-image-gan
 Based on https://github.com/taoxugit/AttnGAN/tree/master/code
 
+Paper https://arxiv.org/abs/2003.12137
+
 ## Spring 2019 CS 224U Project
 * BERT encoder
 * Cycle-GAN
